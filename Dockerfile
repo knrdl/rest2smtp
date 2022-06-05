@@ -8,6 +8,7 @@ RUN apk add --no-cache git && \
 COPY www/* /swagger/swagger-ui/dist/
 
 
+# platform parameter fixes https://github.com/docker/buildx/issues/395
 FROM --platform=$BUILDPLATFORM rust:1.61-bullseye as executable_builder
 
 WORKDIR /usr/src/app
