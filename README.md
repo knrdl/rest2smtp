@@ -24,7 +24,7 @@ version: '3.9'
 
 services:
   rest2smtp:
-    image: ghcr.io/knrdl/rest2smtp
+    image: knrdl/rest2smtp  # or alternative: ghcr.io/knrdl/rest2smtp
     hostname: rest2smtp
     environment:
       SMTP_HOST: smtp.example.org
