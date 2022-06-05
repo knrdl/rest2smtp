@@ -8,7 +8,7 @@ RUN apk add --no-cache git && \
 COPY www/* /swagger/swagger-ui/dist/
 
 
-FROM rust:1.61-bullseye as executable_builder
+FROM --platform=$BUILDPLATFORM rust:1.61-bullseye as executable_builder
 
 WORKDIR /usr/src/app
 COPY src ./src
