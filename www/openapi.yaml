@@ -1,0 +1,131 @@
+openapi: 3.0.1
+info:
+  title: rest2smtp
+  description: '%%%API_DOC_INFO%%%'
+  license:
+    name: MIT License
+    url: https://github.com/knrdl/rest2smtp/blob/main/LICENSE
+  version: 1.0.0
+  contact:
+    url: https://github.com/knrdl/rest2smtp
+    name: Developer
+externalDocs:
+  description: Source Code
+  url: https://github.com/knrdl/rest2smtp
+paths:
+  /send:
+    post:
+      tags:
+        - mail
+      summary: Send mail
+      operationId: sendmail
+      requestBody:
+        description: 'Hint: Use content type "multipart/form-data" to include attachments.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MailParameterJson'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MailParameterForm'
+        required: true
+      responses:
+        200:
+          description: mail sent
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Requested mail action okay, completed: id=a5b8cd8b-3851-4116-9143-6b7ad4311601"
+        422:
+          description: Malformed input
+          content:
+            text/plain:
+              schema:
+                type: string
+        500:
+          description: Processing error
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    Subject:
+      type: string
+      example: Mail Title
+
+    ContentText:
+      type: string
+      description: May be included as fallback for "content_html"
+      example: Plaintext Mail Body
+
+    ContentHtml:
+      type: string
+      example: HTML Mail Body
+
+    ToAddresses:
+      type: array
+      minItems: 1
+      items:
+        type: string
+      example: [ "admin@example.org" ]
+
+    FromAddress:
+      type: string
+      description: Some mail servers allow to set custom sender address
+      example: you@example.org
+      default: ''
+
+    FromName:
+      type: string
+      description: Custom display name for optional field "from_address"
+      example: Your Name
+
+    Attachments:
+      type: array
+      items:
+        type: string
+        format: binary
+
+    MailParameterJson:
+      required:
+        - subject
+        - content_html
+        - to_addresses
+      type: object
+      properties:
+        subject:
+          $ref: '#/components/schemas/Subject'
+        content_text:
+          $ref: '#/components/schemas/ContentText'
+        content_html:
+          $ref: '#/components/schemas/ContentHtml'
+        to_addresses:
+          $ref: '#/components/schemas/ToAddresses'
+        from_address:
+          $ref: '#/components/schemas/FromAddress'
+        from_name:
+          $ref: '#/components/schemas/FromName'
+
+    MailParameterForm:
+      type: object
+      required:
+        - subject
+        - content_html
+        - to_address
+      properties:
+        subject:
+          $ref: '#/components/schemas/Subject'
+        content_text:
+          $ref: '#/components/schemas/ContentText'
+        content_html:
+          $ref: '#/components/schemas/ContentHtml'
+        to_address:
+          $ref: '#/components/schemas/ToAddresses'
+        from_address:
+          $ref: '#/components/schemas/FromAddress'
+        from_name:
+          $ref: '#/components/schemas/FromName'
+        attachment:
+          $ref: '#/components/schemas/Attachments'

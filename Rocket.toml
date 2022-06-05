@@ -1,0 +1,10 @@
+[default]
+address = "0.0.0.0"
+port = 80
+limits = { data-form = "50MiB", json = "50MiB" }
+ident = false
+log_level = "debug"
+
+[release]
+cli_colors = false
+log_level = "critical"
