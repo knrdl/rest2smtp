@@ -69,10 +69,19 @@ components:
       minItems: 1
       items:
         type: string
+        format: email
       example: [ "admin@example.org" ]
+
+    CcAddresses:
+      type: array
+      items:
+        type: string
+        format: email
+      example: [ "user@example.org" ]
 
     FromAddress:
       type: string
+      format: email
       description: Some mail servers allow to set custom sender address
       example: you@example.org
       default: ''
@@ -103,6 +112,8 @@ components:
           $ref: '#/components/schemas/ContentHtml'
         to_addresses:
           $ref: '#/components/schemas/ToAddresses'
+        cc_addresses:
+          $ref: '#/components/schemas/CcAddresses'
         from_address:
           $ref: '#/components/schemas/FromAddress'
         from_name:
@@ -123,6 +134,8 @@ components:
           $ref: '#/components/schemas/ContentHtml'
         to_address:
           $ref: '#/components/schemas/ToAddresses'
+        cc_address:
+          $ref: '#/components/schemas/CcAddresses'
         from_address:
           $ref: '#/components/schemas/FromAddress'
         from_name:

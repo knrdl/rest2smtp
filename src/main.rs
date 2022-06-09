@@ -63,6 +63,8 @@ struct MailParameterForm<'r> {
     from_name: Option<String>,
     #[field(validate = len(1..), name = "to_address")]
     to_addresses: Vec<String>,
+    #[field(name = "cc_address")]
+    cc_addresses: Vec<String>,
     #[field(validate = len(1..))]
     content_html: String,
     content_text: Option<String>,
@@ -80,6 +82,9 @@ async fn sendmail_form(params: Form<MailParameterForm<'_>>, mailer: &State<maile
     let mut m = Message::builder().from(from_mailbox).subject(&params.subject);
     for to_address in &params.to_addresses {
         m = m.to(to_address.parse().unwrap());
+    }
+    for cc_address in &params.cc_addresses {
+        m = m.cc(cc_address.parse().unwrap());
     }
 
     let mut multipart = MultiPart::alternative()
@@ -141,6 +146,7 @@ struct MailParameterJson {
     from_address: Option<String>,
     from_name: Option<String>,
     to_addresses: Vec<String>,
+    cc_addresses: Vec<String>,
     content_html: String,
     content_text: Option<String>,
 }
@@ -164,6 +170,9 @@ async fn sendmail_json(params: Json<MailParameterJson>, mailer: &State<mailer::M
     let mut m = Message::builder().from(from_mailbox).subject(&params.subject);
     for to_address in &params.to_addresses {
         m = m.to(to_address.parse().unwrap());
+    }
+    for cc_address in &params.cc_addresses {
+        m = m.cc(cc_address.parse().unwrap());
     }
 
     let mut multipart = MultiPart::alternative()
