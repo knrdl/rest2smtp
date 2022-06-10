@@ -2,7 +2,8 @@
 
 Send mails via REST API
 
-API Documentation is served by the program under the root path (`/`).
+API Documentation is served by the program under the root path (`/`). 
+It's also available [here](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/knrdl/rest2smtp/main/www/openapi.yaml#/mail/sendmail).
 
 ## Config
 
