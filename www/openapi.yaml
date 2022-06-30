@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: rest2smtp
-  description: '%%%API_DOC_INFO%%%'
+  description: 'Send mails via REST API'
   license:
     name: MIT License
     url: https://github.com/knrdl/rest2smtp/blob/main/LICENSE
@@ -37,6 +37,12 @@ paths:
               schema:
                 type: string
                 example: "Requested mail action okay, completed: id=a5b8cd8b-3851-4116-9143-6b7ad4311601"
+        413:
+          description: Request (usually attachments) too large
+          content:
+            text/plain:
+              schema:
+                type: string
         422:
           description: Malformed input
           content:

@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 rocket = { version = "0.5.0-rc.2", default-features = false, features = ["json"] }
-lettre = { version = "0.10.0-rc.7", features = ["tokio1", "tokio1-native-tls"] }
+lettre = { version = "0.10.0", features = ["tokio1", "tokio1-native-tls"] }

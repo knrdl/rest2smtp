@@ -35,7 +35,7 @@ fn rocket() -> _ {
         .manage(mailer::Mailer::new(config))
         .mount("/", routes![sendmail_form, sendmail_json])
         .mount("/", FileServer::from("www"))
-        .register("/", catchers![not_found, unprocessable_entity, server_error])
+        .register("/", catchers![not_found, payload_too_large, unprocessable_entity, server_error])
 }
 
 #[catch(404)]
@@ -43,8 +43,13 @@ fn not_found(_req: &Request) -> &'static str {
     "404 not found"
 }
 
+#[catch(413)]
+fn payload_too_large(_req: &Request) -> &'static str {
+    "413 payload too large"
+}
+
 #[catch(422)]
-fn unprocessable_entity() -> &'static str {
+fn unprocessable_entity(_req: &Request) -> &'static str {
     "422 unprocessable entity"
 }
 
