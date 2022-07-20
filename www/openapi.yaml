@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: rest2smtp
-  description: 'Send mails via REST API'
+  description: '%%%API_DOC_INFO%%%'
   license:
     name: MIT License
     url: https://github.com/knrdl/rest2smtp/blob/main/LICENSE
