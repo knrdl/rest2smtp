@@ -75,129 +75,161 @@ struct MailParameterForm<'r> {
     content_text: Option<String>,
 }
 
-#[post("/send", format = "multipart/form-data", data = "<params>")]
-async fn sendmail_form(params: Form<MailParameterForm<'_>>, mailer: &State<mailer::Mailer>) -> (Status, String) {
-    let from_addr = match &params.from_address {
-        Some(fa) => fa,
-        None => mailer.config.username.as_ref().unwrap()
-    };
+#[post("/send", format = "multipart/form-data", data = "<request_params>")]
+async fn sendmail_form(request_params: Result<Form<MailParameterForm<'_>>, rocket::form::Errors<'_>>, mailer: &State<mailer::Mailer>) -> (Status, String) {
+    match request_params {
+        Ok(params) => {
+            let from_addr = match &params.from_address {
+                Some(fa) => fa,
+                None => mailer.config.username.as_ref().unwrap()
+            };
 
-    let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr.parse().unwrap());
+            let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr.parse().unwrap());
 
-    let mut m = Message::builder().from(from_mailbox).subject(&params.subject);
-    for to_address in &params.to_addresses {
-        m = m.to(to_address.parse().unwrap());
-    }
-    for cc_address in &params.cc_addresses {
-        m = m.cc(cc_address.parse().unwrap());
-    }
+            let mut m = Message::builder().from(from_mailbox).subject(&params.subject);
+            for to_address in &params.to_addresses {
+                m = m.to(to_address.parse().unwrap());
+            }
+            for cc_address in &params.cc_addresses {
+                m = m.cc(cc_address.parse().unwrap());
+            }
 
-    let mut multipart = MultiPart::alternative()
-        .singlepart(
-            SinglePart::builder()
-                .header(header::ContentType::TEXT_HTML)
-                .body(params.content_html.to_string()),
-        );
-    if let Some(txt) = &params.content_text {
-        multipart = multipart.singlepart(
-            SinglePart::builder()
-                .header(header::ContentType::TEXT_PLAIN)
-                .body(txt.to_string()),
-        )
-    }
+            let mut multipart = MultiPart::alternative()
+                .singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_HTML)
+                        .body(params.content_html.to_string()),
+                );
+            if let Some(txt) = &params.content_text {
+                multipart = multipart.singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_PLAIN)
+                        .body(txt.to_string()),
+                )
+            }
 
-    let mail_body = if params.attachments.len() > 0 {
-        let mut attachments = MultiPart::mixed().multipart(multipart);
-        for attachment in &params.attachments {
-            attachments = attachments.singlepart(Attachment::new(match attachment.name() {
-                Some(safe_name) => {
-                    let name_no_ext = Path::new(safe_name);
-                    let unsafe_name = attachment.raw_name().unwrap().dangerous_unsafe_unsanitized_raw().as_str();
-                    let ext_part = Path::new(unsafe_name).extension();
-                    let extension = match ext_part {
-                        Some(ext) => ext.to_os_string(),
-                        None => OsString::from("")
-                    };
-                    name_no_ext.with_extension(extension).into_os_string().into_string().unwrap()
+            let mail_body = if params.attachments.len() > 0 {
+                let mut attachments = MultiPart::mixed().multipart(multipart);
+                for attachment in &params.attachments {
+                    attachments = attachments.singlepart(Attachment::new(match attachment.name() {
+                        Some(safe_name) => {
+                            let name_no_ext = Path::new(safe_name);
+                            let unsafe_name = attachment.raw_name().unwrap().dangerous_unsafe_unsanitized_raw().as_str();
+                            let ext_part = Path::new(unsafe_name).extension();
+                            let extension = match ext_part {
+                                Some(ext) => ext.to_os_string(),
+                                None => OsString::from("")
+                            };
+                            name_no_ext.with_extension(extension).into_os_string().into_string().unwrap()
+                        }
+                        None => "attachment".to_string()
+                    }).body(
+                        match attachment {
+                            TempFile::File { path, .. } => fs::read(path).unwrap(),
+                            TempFile::Buffered { content } => content.as_bytes().to_vec()
+                        },
+                        match &attachment.content_type() {
+                            Some(content_type) => content_type.to_string().parse().unwrap(),
+                            None => "application/octet-stream".parse().unwrap()
+                        },
+                    ));
                 }
-                None => "attachment".to_string()
-            }).body(
-                match attachment {
-                    TempFile::File { path, .. } => fs::read(path).unwrap(),
-                    TempFile::Buffered { content } => content.as_bytes().to_vec()
-                },
-                match &attachment.content_type() {
-                    Some(content_type) => content_type.to_string().parse().unwrap(),
-                    None => "application/octet-stream".parse().unwrap()
-                },
-            ));
-        }
-        attachments
-    } else {
-        multipart
-    };
+                attachments
+            } else {
+                multipart
+            };
 
-    let mail: Message = m.multipart(mail_body).unwrap();
-    match mailer.transport.send(mail).await {
-        Ok(x) => (Status::Ok, x.first_line().unwrap().to_string()),
-        Err(e) => (Status::InternalServerError, e.to_string()),
+            let mail: Message = m.multipart(mail_body).unwrap();
+            match mailer.transport.send(mail).await {
+                Ok(x) => (Status::Ok, x.first_line().unwrap().to_string()),
+                Err(e) => (Status::InternalServerError, e.to_string()),
+            }
+        }
+        Err(errors) => {
+            let err_text = errors.iter().map(|err| format!("{:?}", err)).collect::<Vec<_>>().join("\n");
+            (Status::UnprocessableEntity, err_text.into())
+        }
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 struct MailParameterJson {
     subject: String,
     from_address: Option<String>,
     from_name: Option<String>,
     to_addresses: Vec<String>,
-    cc_addresses: Vec<String>,
+    cc_addresses: Option<Vec<String>>,
     content_html: String,
     content_text: Option<String>,
 }
 
-#[post("/send", format = "json", data = "<params>")]
-async fn sendmail_json(params: Json<MailParameterJson>, mailer: &State<mailer::Mailer>) -> (Status, String) {
-    assert!(params.subject.chars().count() >= 1);
-    if let Some(fa) = &params.from_address {
-        assert!(fa.chars().count() >= 3);
-    }
-    assert!(params.to_addresses.len() >= 1);
-    assert!(params.content_html.chars().count() >= 1);
+#[post("/send", format = "json", data = "<request_params>")]
+async fn sendmail_json(request_params: Result<Json<MailParameterJson>, rocket::serde::json::Error<'_>>, mailer: &State<mailer::Mailer>) -> (Status, String) {
+    match request_params {
+        Ok(params) => {
+            // manual data validation required, https://github.com/SergioBenitez/Rocket/issues/1915
+            if params.subject.chars().count() == 0 {
+                return (Status::UnprocessableEntity, "subject missing or empty".into());
+            }
+            if let Some(fa) = &params.from_address {
+                if fa.chars().count() < 3 {
+                    return (Status::UnprocessableEntity, "from_address invalid".into());
+                }
+            }
+            if params.to_addresses.len() == 0 {
+                return (Status::UnprocessableEntity, "to_addresses missing or empty".into());
+            } else {
+                for to_addr in &params.to_addresses {
+                    if to_addr.chars().count() < 3 {
+                        return (Status::UnprocessableEntity, "to_addresses contains invalid address".into());
+                    }
+                }
+            }
+            if params.content_html.chars().count() == 0 {
+                return (Status::UnprocessableEntity, "content_html missing or empty".into());
+            }
 
-    let from_addr = match &params.from_address {
-        Some(fa) => fa,
-        None => mailer.config.username.as_ref().unwrap()
-    };
+            let from_addr = match &params.from_address {
+                Some(fa) => fa,
+                None => mailer.config.username.as_ref().unwrap()
+            };
 
-    let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr.parse().unwrap());
+            let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr.parse().unwrap());
 
-    let mut m = Message::builder().from(from_mailbox).subject(&params.subject);
-    for to_address in &params.to_addresses {
-        m = m.to(to_address.parse().unwrap());
-    }
-    for cc_address in &params.cc_addresses {
-        m = m.cc(cc_address.parse().unwrap());
-    }
+            let mut m = Message::builder().from(from_mailbox).subject(&params.subject);
+            for to_address in &params.to_addresses {
+                m = m.to(to_address.parse().unwrap());
+            }
+            if let Some(cc_addrs) = &params.cc_addresses {
+                for cc_address in cc_addrs {
+                    m = m.cc(cc_address.parse().unwrap());
+                }
+            }
 
-    let mut multipart = MultiPart::alternative()
-        .singlepart(
-            SinglePart::builder()
-                .header(header::ContentType::TEXT_HTML)
-                .body(params.content_html.to_string()),
-        );
-    if let Some(txt) = &params.content_text {
-        multipart = multipart.singlepart(
-            SinglePart::builder()
-                .header(header::ContentType::TEXT_PLAIN)
-                .body(txt.to_string()),
-        )
-    }
+            let mut multipart = MultiPart::alternative()
+                .singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_HTML)
+                        .body(params.content_html.to_string()),
+                );
+            if let Some(txt) = &params.content_text {
+                multipart = multipart.singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_PLAIN)
+                        .body(txt.to_string()),
+                )
+            }
 
-    let mail: Message = m.multipart(multipart).unwrap();
+            let mail: Message = m.multipart(multipart).unwrap();
 
-    match mailer.transport.send(mail).await {
-        Ok(x) => (Status::Ok, x.first_line().unwrap().to_string()),
-        Err(e) => (Status::InternalServerError, e.to_string()),
+            match mailer.transport.send(mail).await {
+                Ok(x) => (Status::Ok, x.first_line().unwrap().to_string()),
+                Err(e) => (Status::InternalServerError, e.to_string()),
+            }
+        }
+        Err(e) => {
+            (Status::UnprocessableEntity, format!("{}", e).into())
+        }
     }
 }
