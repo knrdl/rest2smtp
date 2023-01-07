@@ -32,3 +32,11 @@ services:
     ports:
       - "80:80"
 ```
+
+## Development
+
+```shell
+# in project root dir
+podman run -it --rm -v "$PWD:$PWD" -w "$PWD" -p8080:80 --env-file env docker.io/library/rust
+$ cargo run
+```
