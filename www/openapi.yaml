@@ -85,6 +85,13 @@ components:
         format: email
       example: [ "user@example.org" ]
 
+    BccAddresses:
+      type: array
+      items:
+        type: string
+        format: email
+      example: [ "blindcopy@example.org" ]
+
     FromAddress:
       type: string
       format: email
@@ -120,6 +127,8 @@ components:
           $ref: '#/components/schemas/ToAddresses'
         cc_addresses:
           $ref: '#/components/schemas/CcAddresses'
+        bcc_addresses:
+          $ref: '#/components/schemas/BccAddresses'
         from_address:
           $ref: '#/components/schemas/FromAddress'
         from_name:
@@ -142,6 +151,8 @@ components:
           $ref: '#/components/schemas/ToAddresses'
         cc_address:
           $ref: '#/components/schemas/CcAddresses'
+        bcc_address:
+          $ref: '#/components/schemas/BccAddresses'
         from_address:
           $ref: '#/components/schemas/FromAddress'
         from_name:
