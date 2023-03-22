@@ -71,6 +71,19 @@ fn server_error() -> &'static str {
     "500 server error"
 }
 
+// the form data might contain addresses in the form "mail1@example.org,mail2@example.org" instead of ["mail1@example.org","mail2@example.org"]
+fn extract_addrs(addrs: &Vec<String>) -> Vec<String> {
+    if addrs.len() == 1 && addrs[0].contains(",") {
+        addrs[0]
+            .split(",")
+            .map(|addr| addr.trim().to_string())
+            .filter(|addr| !addr.is_empty())
+            .collect()
+    } else {
+        addrs.to_vec()
+    }
+}
+
 #[derive(FromForm)]
 struct MailParameterForm<'r> {
     #[field(validate = len(1..))]
@@ -107,21 +120,21 @@ async fn sendmail_form(
             let mut m = Message::builder()
                 .from(from_mailbox)
                 .subject(&params.subject);
-            for to_address in &params.to_addresses {
+            for to_address in extract_addrs(&params.to_addresses) {
                 if let Ok(addr) = to_address.parse() {
                     m = m.to(addr);
                 } else {
                     return (Status::UnprocessableEntity, "invalid to_address".into());
                 }
             }
-            for cc_address in &params.cc_addresses {
+            for cc_address in extract_addrs(&params.cc_addresses) {
                 if let Ok(addr) = cc_address.parse() {
                     m = m.cc(addr);
                 } else {
                     return (Status::UnprocessableEntity, "invalid cc_address".into());
                 }
             }
-            for bcc_address in &params.bcc_addresses {
+            for bcc_address in extract_addrs(&params.bcc_addresses) {
                 if let Ok(addr) = bcc_address.parse() {
                     m = m.bcc(addr);
                 } else {
