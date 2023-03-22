@@ -18,11 +18,7 @@ RUN cargo build --release && \
     strip target/release/rest2smtp
 
 
-FROM docker.io/debian:bullseye-slim
-
-RUN apt-get update && \
-    apt-get install -y openssl ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+FROM gcr.io/distroless/cc
 
 EXPOSE 80/tcp
 WORKDIR /app
