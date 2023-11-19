@@ -1,8 +1,8 @@
 [package]
 name = "rest2smtp"
-version = "0.2.0"
+version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-rocket = { version = "0.5.0-rc.4", default-features = false, features = ["json"] }
-lettre = { version = "0.10.4", features = ["tokio1", "tokio1-native-tls"] }
+rocket = { version = "0.5.0", default-features = false, features = ["json"] }
+lettre = { version = "0.11.1", features = ["tokio1", "tokio1-native-tls"] }

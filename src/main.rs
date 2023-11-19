@@ -19,8 +19,8 @@ use rocket::State;
 use lettre::message::{header, Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::{AsyncTransport, Message};
 
-#[launch]
-fn rocket() -> _ {
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
     let config = config::SmtpConfig::new();
     config::generate_api_doc().unwrap();
     println!(
@@ -36,7 +36,7 @@ fn rocket() -> _ {
             None => "(none)".to_string(),
         }
     );
-    rocket::build()
+    let _rocket = rocket::build()
         .manage(mailer::Mailer::new(config))
         .mount("/", routes![sendmail_form, sendmail_json])
         .mount("/", FileServer::from("www"))
@@ -47,8 +47,12 @@ fn rocket() -> _ {
                 payload_too_large,
                 unprocessable_entity,
                 server_error
-            ],
-        )
+                ],
+            )
+        .launch()
+        .await?;
+
+    Ok(())
 }
 
 #[catch(404)]
@@ -183,7 +187,7 @@ async fn sendmail_form(
                         .body(
                             match attachment {
                                 TempFile::File { path, .. } => fs::read(path).unwrap(),
-                                TempFile::Buffered { content } => content.as_bytes().to_vec(),
+                                TempFile::Buffered { content } => content.to_vec(),
                             },
                             match &attachment.content_type() {
                                 Some(content_type) => content_type.to_string().parse().unwrap(),
