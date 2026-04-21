@@ -1,4 +1,4 @@
-FROM docker.io/alpine:3.23.3 as swagger_builder
+FROM docker.io/alpine:3.23.4 as swagger_builder
 
 WORKDIR /swagger
 RUN apk add --no-cache git && \
