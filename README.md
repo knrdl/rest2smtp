@@ -18,7 +18,34 @@ It's also available [here](https://petstore.swagger.io/?url=https://raw.githubus
 
 ## Deployment
 
-Docker Compose / Swarm
+### NixOS
+
+```nix
+{ ... }:
+{
+  imports = [ ./path/to/rest2smtp/nix/module.nix ];
+
+  services.rest2smtp = {
+    enable = true;
+    port = 8080;
+    smtp = {
+      host = "smtp.example.org";
+      # username = "user";
+      # passwordFile = "/etc/rest2smtp.pass";
+    };
+    # Optional: require Authorization: Bearer <token> on POST /send
+    # apiTokenFile = "/etc/rest2smtp.token";
+  };
+}
+```
+
+Build the package from this repository (no GitHub source fetch):
+
+```shell
+nix-build -E 'with import <nixpkgs> {}; callPackage ./nix/package.nix {}'
+```
+
+### Docker Compose / Swarm
 
 ```yaml
 version: '3.9'
