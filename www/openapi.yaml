@@ -19,6 +19,9 @@ paths:
         - mail
       summary: Send mail
       operationId: sendmail
+      security:
+        - bearerAuth: []
+        - {}
       requestBody:
         description: 'Hint: Use content type "multipart/form-data" to include attachments.'
         content:
@@ -37,6 +40,12 @@ paths:
               schema:
                 type: string
                 example: "Requested mail action okay, completed: id=a5b8cd8b-3851-4116-9143-6b7ad4311601"
+        401:
+          description: Missing or invalid bearer token (only when API_TOKEN is set)
+          content:
+            text/plain:
+              schema:
+                type: string
         413:
           description: Request (usually attachments) too large
           content:
@@ -56,6 +65,11 @@ paths:
               schema:
                 type: string
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Required only when the API_TOKEN environment variable is set.
   schemas:
     Subject:
       type: string

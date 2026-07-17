@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate rocket;
 
+mod auth;
 mod config;
 mod mailer;
 
@@ -19,12 +20,15 @@ use rocket::State;
 use lettre::message::{header, Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::{AsyncTransport, Message};
 
+use auth::{ApiAuth, ApiTokenConfig};
+
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
     let config = config::SmtpConfig::new();
+    let api_token = ApiTokenConfig::from_env();
     config::generate_api_doc().unwrap();
     println!(
-        "Running with SMTP Config: host={}, port={}, encryption={}, user={}",
+        "Running with SMTP Config: host={}, port={}, encryption={}, user={}, api_auth={}",
         config.host,
         match config.port {
             Some(p) => p.to_string(),
@@ -34,21 +38,28 @@ async fn main() -> Result<(), rocket::Error> {
         match &config.username {
             Some(u) => u.to_string(),
             None => "(none)".to_string(),
+        },
+        if api_token.enabled() {
+            "enabled"
+        } else {
+            "disabled"
         }
     );
     let _rocket = rocket::build()
         .manage(mailer::Mailer::new(config))
+        .manage(api_token)
         .mount("/", routes![sendmail_form, sendmail_json])
         .mount("/", FileServer::from("www"))
         .register(
             "/",
             catchers![
                 not_found,
+                unauthorized,
                 payload_too_large,
                 unprocessable_entity,
                 server_error
-                ],
-            )
+            ],
+        )
         .launch()
         .await?;
 
@@ -58,6 +69,11 @@ async fn main() -> Result<(), rocket::Error> {
 #[catch(404)]
 fn not_found(_req: &Request) -> &'static str {
     "404 not found"
+}
+
+#[catch(401)]
+fn unauthorized(_req: &Request) -> &'static str {
+    "401 unauthorized"
 }
 
 #[catch(413)]
@@ -109,6 +125,7 @@ struct MailParameterForm<'r> {
 
 #[post("/send", format = "multipart/form-data", data = "<request_params>")]
 async fn sendmail_form(
+    _auth: ApiAuth,
     request_params: Result<Form<MailParameterForm<'_>>, rocket::form::Errors<'_>>,
     mailer: &State<mailer::Mailer>,
 ) -> (Status, String) {
@@ -233,6 +250,7 @@ struct MailParameterJson {
 
 #[post("/send", format = "json", data = "<request_params>")]
 async fn sendmail_json(
+    _auth: ApiAuth,
     request_params: Result<Json<MailParameterJson>, rocket::serde::json::Error<'_>>,
     mailer: &State<mailer::Mailer>,
 ) -> (Status, String) {
