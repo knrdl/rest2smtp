@@ -4,7 +4,7 @@
 }:
 let
   version = "0.0.0";
-  cargoHash = "sha256-TXs5cAotve37H8kntVnrAS7KYjC93TbPgBOwHR2FJgA=";
+  cargoHash = "sha256-HHTOkjsJ46t3BtumtLi2yX1zFpk5G07ualhHeQWzVaU=";
   swaggerUiRev = "v5.18.2";
   swaggerUiHash = "sha256-JceFGTjNicDUVPanDPk5TUDeG0oFWyzC8SCFXbOPC1o=";
 

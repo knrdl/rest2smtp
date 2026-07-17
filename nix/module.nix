@@ -16,18 +16,22 @@ let
 
   defaultPackage = pkgs.callPackage ./package.nix { };
 
-  stateDir = "/var/lib/rest2smtp";
+  runtimeDir = "/run/rest2smtp";
 
   startScript = pkgs.writeShellScript "rest2smtp-start" ''
     set -euo pipefail
-    cp -r ${cfg.package}/share/rest2smtp/. ${stateDir}/
+    runtimeDir=''${RUNTIME_DIRECTORY:-${runtimeDir}}
+    rm -rf "$runtimeDir"/*
+    cp -a ${cfg.package}/share/rest2smtp/. "$runtimeDir/"
+    # Nix store files are read-only; rest2smtp rewrites openapi.yaml at startup.
+    chmod -R u+w "$runtimeDir"
     ${lib.optionalString (cfg.smtp.passwordFile != null) ''
-      export SMTP_PASSWORD=$(tr -d '\n\r' < ${lib.escapeShellArg cfg.smtp.passwordFile})
+      export SMTP_PASSWORD=$(tr -d '\n\r' < "$CREDENTIALS_DIRECTORY/smtp.pass")
     ''}
     ${lib.optionalString (cfg.apiTokenFile != null) ''
-      export API_TOKEN=$(tr -d '\n\r' < ${lib.escapeShellArg cfg.apiTokenFile})
+      export API_TOKEN=$(tr -d '\n\r' < "$CREDENTIALS_DIRECTORY/api.token")
     ''}
-    cd ${stateDir}
+    cd "$runtimeDir"
     exec ${lib.getExe cfg.package}
   '';
 in
@@ -191,11 +195,15 @@ in
       serviceConfig = {
         Type = "simple";
         DynamicUser = true;
-        StateDirectory = "rest2smtp";
-        WorkingDirectory = stateDir;
+        RuntimeDirectory = "rest2smtp";
+        WorkingDirectory = runtimeDir;
         ExecStart = startScript;
         Restart = "on-failure";
         RestartSec = "5s";
+
+        LoadCredential =
+          lib.optional (cfg.smtp.passwordFile != null) "smtp.pass:${toString cfg.smtp.passwordFile}"
+          ++ lib.optional (cfg.apiTokenFile != null) "api.token:${toString cfg.apiTokenFile}";
 
         AmbientCapabilities = lib.mkIf (cfg.port < 1024) [ "CAP_NET_BIND_SERVICE" ];
         CapabilityBoundingSet = lib.mkIf (cfg.port < 1024) [ "CAP_NET_BIND_SERVICE" ];
