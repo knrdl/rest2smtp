@@ -162,7 +162,6 @@ struct MailParameterForm<'r> {
     cc_addresses: Vec<String>,
     #[field(name = "bcc_address")]
     bcc_addresses: Vec<String>,
-    #[field(validate = len(1..))]
     content_html: Option<String>,
     content_text: Option<String>,
 }
