@@ -308,7 +308,7 @@ async fn sendmail_json(
     match request_params {
         Ok(params) => {
             // manual data validation required, https://github.com/SergioBenitez/Rocket/issues/1915
-            if params.subject.is_empty() {
+            if params.subject.chars().count() < 1 {
                 return (
                     Status::UnprocessableEntity,
                     "subject missing or empty".into(),
