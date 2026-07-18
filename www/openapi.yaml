@@ -1,7 +1,7 @@
-openapi: 3.0.1
+openapi: 3.2.0
 info:
   title: rest2smtp
-  description: '%%%API_DOC_INFO%%%'
+  description: '' # AUTOREPLACED
   license:
     name: MIT License
     url: https://github.com/knrdl/rest2smtp/blob/main/LICENSE
@@ -19,6 +19,7 @@ paths:
         - mail
       summary: Send mail
       operationId: sendmail
+      security: [] # AUTOREPLACED
       requestBody:
         description: 'Hint: Use content type "multipart/form-data" to include attachments.'
         content:
@@ -30,32 +31,39 @@ paths:
               $ref: '#/components/schemas/MailParameterForm'
         required: true
       responses:
-        200:
+        "200":
           description: mail sent
           content:
             text/plain:
               schema:
                 type: string
                 example: "Requested mail action okay, completed: id=a5b8cd8b-3851-4116-9143-6b7ad4311601"
-        413:
+        "401":
+          description: Missing or invalid bearer token (only when API_TOKEN is set)
+          content:
+            text/plain:
+              schema:
+                type: string
+        "413":
           description: Request (usually attachments) too large
           content:
             text/plain:
               schema:
                 type: string
-        422:
+        "422":
           description: Malformed input
           content:
             text/plain:
               schema:
                 type: string
-        500:
+        "500":
           description: Processing error
           content:
             text/plain:
               schema:
                 type: string
 components:
+  securitySchemes: {} # AUTOREPLACED
   schemas:
     Subject:
       type: string
