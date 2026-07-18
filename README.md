@@ -14,6 +14,7 @@ It's also available [here](https://petstore.swagger.io/?url=https://raw.githubus
 | SMTP_ENCRYPTION | `TLS` (default), `STARTTLS`, `UNENCRYPTED` (insecure)                                                               |
 | SMTP_USERNAME   | (optional)                                                                                                          |
 | SMTP_PASSWORD   | (optional)                                                                                                          |
+| API_TOKEN       | Shared secret for API access. When set, `POST /send` requires `Authorization: Bearer <token>`. When unset, open.   |
 | API_DOC_INFO    | Custom text (or html) to be displayed in API documentation header. Defaults to "Send mails via REST API" (optional) |
 
 ## Deployment
@@ -29,6 +30,7 @@ services:
     hostname: rest2smtp
     environment:
       SMTP_HOST: smtp.example.org  # replace this
+      # API_TOKEN: replace-with-long-random-secret
     ports:
       - "80:80"
 ```
