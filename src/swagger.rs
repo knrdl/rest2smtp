@@ -17,7 +17,7 @@ pub fn generate_api_doc(api_token_enabled: bool) -> Result<(), io::Error> {
     content = content.replace(
         "security: [] # AUTOREPLACED",
         if api_token_enabled {
-            "security:\n  - bearerAuth: []\n  - {}"
+            "security:\n        - bearerAuth: []\n        - {}"
         } else {
             ""
         },
