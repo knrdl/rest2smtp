@@ -22,7 +22,7 @@ It's also available [here](https://petstore.swagger.io/?url=https://raw.githubus
 ### Docker
 
 ```shell
-docker run -p 8080:80 -e SMTP_HOST=smtp.example.org knrdl/rest2smtp
+docker run -p 8080:80 -e SMTP_HOST=smtp.example.org -e SMTP_USERNAME=user -e SMTP_PASSWORD=password knrdl/rest2smtp
 ```
 
 Open the API documentation: http://localhost:8080/
@@ -34,8 +34,6 @@ curl -X POST http://localhost:8080/send -F 'subject=Test' -F 'content_html=Hi th
 ### Docker Compose
 
 ```yaml
-version: '3.9'
-
 services:
   rest2smtp:
     image: knrdl/rest2smtp  # or alternative: ghcr.io/knrdl/rest2smtp
