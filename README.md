@@ -27,6 +27,10 @@ docker run -p 8080:80 -e SMTP_HOST=smtp.example.org knrdl/rest2smtp
 
 Open the API documentation: http://localhost:8080/
 
+```shell
+curl -X POST http://localhost:8080/send -F 'subject=Test' -F 'content_html=Hi there' -F 'to_address=info@example.invalid'
+```
+
 ### Docker Compose
 
 ```yaml
