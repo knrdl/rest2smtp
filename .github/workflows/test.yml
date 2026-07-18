@@ -20,8 +20,14 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+
       - name: Check formatting
         run: cargo fmt -- --check
+
+      - name: Run cargo outdated
+        run: cargo outdated --exit-code 1
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
