@@ -51,7 +51,7 @@ impl<'r> FromRequest<'r> for ApiAuth {
 }
 
 fn extract_bearer_token(header_value: &str) -> Option<&str> {
-    let mut parts = header_value.trim().split_whitespace();
+    let mut parts = header_value.split_whitespace();
     let scheme = parts.next()?;
 
     if !scheme.eq_ignore_ascii_case("bearer") {

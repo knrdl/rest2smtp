@@ -23,7 +23,7 @@ use lettre::{AsyncTransport, Message};
 use auth::{ApiAuth, ApiTokenConfig};
 
 #[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
+async fn main() -> Result<(), Box<rocket::Error>> {
     let config = config::SmtpConfig::new();
     let api_token = ApiTokenConfig::from_env();
     config::generate_api_doc().unwrap();
@@ -34,7 +34,7 @@ async fn main() -> Result<(), rocket::Error> {
             Some(p) => p.to_string(),
             None => "(default)".to_string(),
         },
-        config.encryption.to_string(),
+        config.encryption,
         match &config.username {
             Some(u) => u.to_string(),
             None => "(none)".to_string(),
@@ -92,7 +92,7 @@ fn server_error() -> &'static str {
 }
 
 // the form data might contain addresses in the form "mail1@example.org,mail2@example.org" instead of ["mail1@example.org","mail2@example.org"]
-fn extract_addrs(addrs: &Vec<String>) -> Vec<String> {
+fn extract_addrs(addrs: &[String]) -> Vec<String> {
     if addrs.len() == 1 && addrs[0].contains(",") {
         addrs[0]
             .split(",")
@@ -176,7 +176,7 @@ async fn sendmail_form(
                 )
             }
 
-            let mail_body = if params.attachments.len() > 0 {
+            let mail_body = if !params.attachments.is_empty() {
                 let mut attachments = MultiPart::mixed().multipart(multipart);
                 for attachment in &params.attachments {
                     attachments = attachments.singlepart(
@@ -230,7 +230,7 @@ async fn sendmail_form(
                 .map(|err| format!("{:?}", err))
                 .collect::<Vec<_>>()
                 .join("\n");
-            (Status::UnprocessableEntity, err_text.into())
+            (Status::UnprocessableEntity, err_text)
         }
     }
 }
@@ -268,7 +268,7 @@ async fn sendmail_json(
                     return (Status::UnprocessableEntity, "from_address invalid".into());
                 }
             }
-            if params.to_addresses.len() == 0 {
+            if params.to_addresses.is_empty() {
                 return (
                     Status::UnprocessableEntity,
                     "to_addresses missing or empty".into(),
@@ -346,6 +346,6 @@ async fn sendmail_json(
                 Err(e) => (Status::InternalServerError, e.to_string()),
             }
         }
-        Err(e) => (Status::UnprocessableEntity, format!("{}", e).into()),
+        Err(e) => (Status::UnprocessableEntity, format!("{}", e)),
     }
 }

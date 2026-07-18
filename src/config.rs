@@ -33,11 +33,13 @@ pub struct SmtpConfig {
 impl SmtpConfig {
     pub fn new() -> SmtpConfig {
         let host = env::var("SMTP_HOST").expect("SMTP_HOST is not set");
-        assert_eq!(host.trim().is_empty(), false, "SMTP_HOST is empty");
+        if host.trim().is_empty() {
+            panic!("SMTP_HOST is empty");
+        }
 
         SmtpConfig {
             host,
-            port: if let Some(p) = env::var("SMTP_PORT").ok() {
+            port: if let Ok(p) = env::var("SMTP_PORT") {
                 Some(p.parse::<u16>().unwrap())
             } else {
                 None
@@ -59,13 +61,13 @@ impl SmtpConfig {
 
 pub fn generate_api_doc() -> Result<(), io::Error> {
     let file_path = Path::new("./www/openapi.yaml");
-    let contents = fs::read_to_string(&file_path)?;
+    let contents = fs::read_to_string(file_path)?;
     let new_content = contents.replace(
         "%%%API_DOC_INFO%%%",
         &env::var("API_DOC_INFO")
             .unwrap_or("Send mails via REST API".to_string())
             .replace("'", "\""),
     );
-    fs::write(&file_path, new_content)?;
+    fs::write(file_path, new_content)?;
     Ok(())
 }
