@@ -10,10 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-      - name: Build
-        run: cargo build --release
       - id: imagetag
         run: |
           echo "DOCKER_IMAGE_TAG=$(echo ${{github.ref_name}} | cut -dv -f2)" >> $GITHUB_ENV
@@ -32,13 +28,3 @@ jobs:
             Docker images:
             - ${{ github.repository }}:${{ env.DOCKER_IMAGE_TAG }}
             - ghcr.io/${{ github.repository }}:${{ env.DOCKER_IMAGE_TAG }}
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/rest2smtp
-          asset_name: rest2smtp
-          asset_content_type: application/x-executable
