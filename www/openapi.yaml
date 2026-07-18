@@ -121,7 +121,6 @@ components:
     MailParameterJson:
       required:
         - subject
-        - content_html
         - to_addresses
       type: object
       properties:
@@ -146,7 +145,6 @@ components:
       type: object
       required:
         - subject
-        - content_html
         - to_address
       properties:
         subject:
