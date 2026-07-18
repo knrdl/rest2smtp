@@ -11,14 +11,17 @@ use std::fs;
 use std::path::Path;
 
 use rocket::{
-form::Form,
-fs::{FileServer, TempFile},
-http::Status,
-serde::{json::Json, Deserialize},
-Request, State,
+    form::Form,
+    fs::{FileServer, TempFile},
+    http::Status,
+    serde::{json::Json, Deserialize},
+    Request, State,
 };
 
-use lettre::message::{header, Attachment, Mailbox, MultiPart, SinglePart};
+use lettre::{
+    message::{Attachment, Mailbox, MultiPart, SinglePart},
+    Address,
+};
 use lettre::{AsyncTransport, Message};
 
 use auth::{ApiAuth, ApiTokenConfig};
@@ -48,7 +51,7 @@ async fn main() -> Result<(), Box<rocket::Error>> {
     );
     let _rocket = rocket::build()
         .manage(mailer::Mailer::new(config))
-                .mount("/", routes![sendmail_form, sendmail_json])
+        .mount("/", routes![sendmail_form, sendmail_json])
         .mount("/", FileServer::from("www"))
         .register(
             "/",
@@ -122,6 +125,29 @@ fn extract_addrs(addrs: &[String]) -> Vec<String> {
     }
 }
 
+fn find_from_addr(
+    request_value: &Option<String>,
+    mailer: &mailer::Mailer,
+) -> Result<Address, (Status, String)> {
+    let from_addr = match &request_value {
+        Some(fa) => Some(fa),
+        None => mailer.config.username.as_ref(),
+    };
+
+    if let Some(from_addr) = from_addr {
+        if let Ok(from_addr) = from_addr.parse::<Address>() {
+            Ok(from_addr)
+        } else {
+            Err((Status::UnprocessableEntity, "from_address invalid".into()))
+        }
+    } else {
+        Err((
+            Status::UnprocessableEntity,
+            "from_address missing and no default configured".into(),
+        ))
+    }
+}
+
 #[derive(FromForm)]
 struct MailParameterForm<'r> {
     #[field(validate = len(1..))]
@@ -137,7 +163,7 @@ struct MailParameterForm<'r> {
     #[field(name = "bcc_address")]
     bcc_addresses: Vec<String>,
     #[field(validate = len(1..))]
-    content_html: String,
+    content_html: Option<String>,
     content_text: Option<String>,
 }
 
@@ -149,12 +175,12 @@ async fn sendmail_form(
 ) -> (Status, String) {
     match request_params {
         Ok(params) => {
-            let from_addr = match &params.from_address {
-                Some(fa) => fa,
-                None => mailer.config.username.as_ref().unwrap(),
+            let from_addr = match find_from_addr(&params.from_address, mailer) {
+                Ok(addr) => addr,
+                Err((status, msg)) => return (status, msg),
             };
 
-            let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr.parse().unwrap());
+            let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr);
 
             let mut m = Message::builder()
                 .from(from_mailbox)
@@ -181,19 +207,21 @@ async fn sendmail_form(
                 }
             }
 
-            let mut multipart = MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_HTML)
-                    .body(params.content_html.to_string()),
-            );
-            if let Some(txt) = &params.content_text {
-                multipart = multipart.singlepart(
-                    SinglePart::builder()
-                        .header(header::ContentType::TEXT_PLAIN)
-                        .body(txt.to_string()),
-                )
-            }
+            let multipart = match (&params.content_text, &params.content_html) {
+                (Some(txt), Some(html)) => MultiPart::alternative()
+                    .singlepart(SinglePart::plain(txt.clone()))
+                    .singlepart(SinglePart::html(html.clone())),
 
+                (Some(txt), None) => {
+                    MultiPart::alternative().singlepart(SinglePart::plain(txt.clone()))
+                }
+
+                (None, Some(html)) => {
+                    MultiPart::alternative().singlepart(SinglePart::html(html.clone()))
+                }
+
+                (None, None) => MultiPart::alternative().build(),
+            };
             let mail_body = if !params.attachments.is_empty() {
                 let mut attachments = MultiPart::mixed().multipart(multipart);
                 for attachment in &params.attachments {
@@ -203,7 +231,7 @@ async fn sendmail_form(
                                 let name_no_ext = Path::new(safe_name);
                                 let unsafe_name = attachment
                                     .raw_name()
-                                    .unwrap()
+                                    .unwrap_or("".into())
                                     .dangerous_unsafe_unsanitized_raw()
                                     .as_str();
                                 let ext_part = Path::new(unsafe_name).extension();
@@ -215,7 +243,7 @@ async fn sendmail_form(
                                     .with_extension(extension)
                                     .into_os_string()
                                     .into_string()
-                                    .unwrap()
+                                    .unwrap_or(safe_name.into())
                             }
                             None => "attachment".to_string(),
                         })
@@ -225,7 +253,11 @@ async fn sendmail_form(
                                 TempFile::Buffered { content } => content.to_vec(),
                             },
                             match &attachment.content_type() {
-                                Some(content_type) => content_type.to_string().parse().unwrap(),
+                                Some(content_type) => {
+                                    content_type.to_string().parse().unwrap_or_else(|_| {
+                                        "application/octet-stream".parse().unwrap()
+                                    })
+                                }
                                 None => "application/octet-stream".parse().unwrap(),
                             },
                         ),
@@ -236,9 +268,11 @@ async fn sendmail_form(
                 multipart
             };
 
-            let mail: Message = m.multipart(mail_body).unwrap();
-            match mailer.transport.send(mail).await {
-                Ok(x) => (Status::Ok, x.first_line().unwrap().to_string()),
+            match m.multipart(mail_body) {
+                Ok(mail) => match mailer.transport.send(mail).await {
+                    Ok(x) => (Status::Ok, x.first_line().unwrap_or("").to_string()),
+                    Err(e) => (Status::InternalServerError, e.to_string()),
+                },
                 Err(e) => (Status::InternalServerError, e.to_string()),
             }
         }
@@ -262,7 +296,7 @@ struct MailParameterJson {
     to_addresses: Vec<String>,
     cc_addresses: Option<Vec<String>>,
     bcc_addresses: Option<Vec<String>>,
-    content_html: String,
+    content_html: Option<String>,
     content_text: Option<String>,
 }
 
@@ -275,17 +309,17 @@ async fn sendmail_json(
     match request_params {
         Ok(params) => {
             // manual data validation required, https://github.com/SergioBenitez/Rocket/issues/1915
-            if params.subject.chars().count() == 0 {
+            if params.subject.is_empty() {
                 return (
                     Status::UnprocessableEntity,
                     "subject missing or empty".into(),
                 );
             }
-            if let Some(fa) = &params.from_address {
-                if fa.chars().count() < 3 {
-                    return (Status::UnprocessableEntity, "from_address invalid".into());
-                }
-            }
+
+            let from_addr = match find_from_addr(&params.from_address, mailer) {
+                Ok(addr) => addr,
+                Err((status, msg)) => return (status, msg),
+            };
             if params.to_addresses.is_empty() {
                 return (
                     Status::UnprocessableEntity,
@@ -301,19 +335,8 @@ async fn sendmail_json(
                     }
                 }
             }
-            if params.content_html.chars().count() == 0 {
-                return (
-                    Status::UnprocessableEntity,
-                    "content_html missing or empty".into(),
-                );
-            }
 
-            let from_addr = match &params.from_address {
-                Some(fa) => fa,
-                None => mailer.config.username.as_ref().unwrap(),
-            };
-
-            let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr.parse().unwrap());
+            let from_mailbox = Mailbox::new(params.from_name.clone(), from_addr);
 
             let mut m = Message::builder()
                 .from(from_mailbox)
@@ -344,23 +367,27 @@ async fn sendmail_json(
                 }
             }
 
-            let mut multipart = MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_HTML)
-                    .body(params.content_html.to_string()),
-            );
-            if let Some(txt) = &params.content_text {
-                multipart = multipart.singlepart(
-                    SinglePart::builder()
-                        .header(header::ContentType::TEXT_PLAIN)
-                        .body(txt.to_string()),
-                )
-            }
+            let multipart = match (&params.content_text, &params.content_html) {
+                (Some(txt), Some(html)) => MultiPart::alternative()
+                    .singlepart(SinglePart::plain(txt.clone()))
+                    .singlepart(SinglePart::html(html.clone())),
 
-            let mail: Message = m.multipart(multipart).unwrap();
+                (Some(txt), None) => {
+                    MultiPart::alternative().singlepart(SinglePart::plain(txt.clone()))
+                }
 
-            match mailer.transport.send(mail).await {
-                Ok(x) => (Status::Ok, x.first_line().unwrap().to_string()),
+                (None, Some(html)) => {
+                    MultiPart::alternative().singlepart(SinglePart::html(html.clone()))
+                }
+
+                (None, None) => MultiPart::alternative().build(),
+            };
+
+            match m.multipart(multipart) {
+                Ok(mail) => match mailer.transport.send(mail).await {
+                    Ok(x) => (Status::Ok, x.first_line().unwrap_or("").to_string()),
+                    Err(e) => (Status::InternalServerError, e.to_string()),
+                },
                 Err(e) => (Status::InternalServerError, e.to_string()),
             }
         }
