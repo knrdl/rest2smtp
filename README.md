@@ -43,6 +43,14 @@ services:
       - "80:80"
 ```
 
+### Binary
+
+Download the standalone binary from the [https://github.com/knrdl/rest2smtp/releases/latest](release assets).
+
+```shell
+SMTP_HOST=smtp.example.org ./rest2smtp
+```
+
 ## Manual build
 
 ```shell
