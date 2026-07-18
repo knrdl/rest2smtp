@@ -1,4 +1,4 @@
-FROM docker.io/alpine:3.24.1 as swagger_builder
+FROM docker.io/alpine:3.24.1 AS swagger_builder
 
 WORKDIR /swagger
 RUN apk add --no-cache git && \
@@ -9,7 +9,7 @@ COPY www/* /swagger/swagger-ui/dist/
 
 
 # platform parameter fixes https://github.com/docker/buildx/issues/395
-FROM --platform=${BUILDPLATFORM:-linux/amd64} docker.io/rust:1.97.0-bookworm as executable_builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} docker.io/rust:1.97.0-bookworm AS executable_builder
 
 WORKDIR /usr/src/app
 COPY src ./src
@@ -18,7 +18,7 @@ RUN cargo build --release && \
     strip target/release/rest2smtp
 
 
-FROM gcr.io/distroless/cc
+FROM gcr.io/distroless/cc-debian13
 
 EXPOSE 80/tcp
 WORKDIR /app
