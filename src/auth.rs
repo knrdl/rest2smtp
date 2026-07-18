@@ -1,7 +1,7 @@
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 
-/// Optional shared API token loaded from `API_TOKEN`.
+/// Optional shared API token loaded from `API_TOKEN` env var.
 /// When `None`, authentication is disabled.
 #[derive(Debug, Clone)]
 pub struct ApiTokenConfig {
@@ -41,7 +41,7 @@ impl<'r> FromRequest<'r> for ApiAuth {
         let provided = req
             .headers()
             .get_one("Authorization")
-            .and_then(|header| header.strip_prefix("Bearer ").map(str::trim));
+            .and_then(|header| extract_bearer_token(header));
 
         match provided {
             Some(token) if tokens_equal(token, expected) => Outcome::Success(ApiAuth),
@@ -50,7 +50,25 @@ impl<'r> FromRequest<'r> for ApiAuth {
     }
 }
 
+fn extract_bearer_token(header_value: &str) -> Option<&str> {
+    let mut parts = header_value.trim().split_whitespace();
+    let scheme = parts.next()?;
+
+    if !scheme.eq_ignore_ascii_case("bearer") {
+        return None;
+    }
+
+    let token = parts.next()?;
+    if parts.next().is_some() /* no whitespace allowed in credentials as of RFC 6750 */ || token.is_empty()
+    {
+        return None;
+    }
+
+    Some(token)
+}
+
 fn tokens_equal(provided: &str, expected: &str) -> bool {
+    // time-safe comparison
     if provided.len() != expected.len() {
         return false;
     }
@@ -59,4 +77,49 @@ fn tokens_equal(provided: &str, expected: &str) -> bool {
         .zip(expected.bytes())
         .fold(0u8, |acc, (a, b)| acc | (a ^ b))
         == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    fn with_api_token(value: Option<&str>) -> Option<String> {
+        match value {
+            Some(token) => {
+                env::set_var("API_TOKEN", token);
+                Some(token.to_string())
+            }
+            None => {
+                env::remove_var("API_TOKEN");
+                None
+            }
+        }
+    }
+
+    #[test]
+    fn parses_valid_bearer_tokens() {
+        assert_eq!(extract_bearer_token("Bearer abc123"), Some("abc123"));
+        assert_eq!(extract_bearer_token("bearer   abc123"), Some("abc123"));
+    }
+
+    #[test]
+    fn rejects_malformed_authorization_headers() {
+        assert_eq!(extract_bearer_token("Token abc123"), None);
+        assert_eq!(extract_bearer_token("Bearer "), None);
+        assert_eq!(extract_bearer_token("Bearer abc123 extra"), None);
+    }
+
+    #[test]
+    fn config_from_env_handles_present_and_missing_tokens() {
+        let configured = with_api_token(Some("secret-token"));
+        let parsed = ApiTokenConfig::from_env();
+        assert_eq!(parsed.token, configured);
+        assert!(parsed.enabled());
+
+        let removed = with_api_token(None);
+        let parsed = ApiTokenConfig::from_env();
+        assert_eq!(parsed.token, removed);
+        assert!(!parsed.enabled());
+    }
 }
