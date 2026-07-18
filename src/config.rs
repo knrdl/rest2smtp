@@ -1,8 +1,5 @@
 use std::env;
 use std::fmt;
-use std::fs;
-use std::io;
-use std::path::Path;
 
 #[derive(Debug)]
 pub enum SmtpEncryption {
@@ -57,17 +54,4 @@ impl SmtpConfig {
             },
         }
     }
-}
-
-pub fn generate_api_doc() -> Result<(), io::Error> {
-    let file_path = Path::new("./www/openapi.yaml");
-    let contents = fs::read_to_string(file_path)?;
-    let new_content = contents.replace(
-        "%%%API_DOC_INFO%%%",
-        &env::var("API_DOC_INFO")
-            .unwrap_or("Send mails via REST API".to_string())
-            .replace("'", "\""),
-    );
-    fs::write(file_path, new_content)?;
-    Ok(())
 }

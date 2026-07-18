@@ -4,6 +4,7 @@ extern crate rocket;
 mod auth;
 mod config;
 mod mailer;
+mod swagger;
 
 use std::ffi::OsString;
 use std::fs;
@@ -26,7 +27,7 @@ use auth::{ApiAuth, ApiTokenConfig};
 async fn main() -> Result<(), Box<rocket::Error>> {
     let config = config::SmtpConfig::new();
     let api_token = ApiTokenConfig::from_env();
-    config::generate_api_doc().unwrap();
+    swagger::generate_api_doc(api_token.enabled()).unwrap();
     println!(
         "Running with SMTP Config: host={}, port={}, encryption={}, user={}, api_auth={}",
         config.host,
