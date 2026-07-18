@@ -2,7 +2,7 @@
 
 Send mails via REST API
 
-API Documentation is served by the program under the root path (`/`).
+API documentation is served by the program under the root path (`/`).
 It's also available [here](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/knrdl/rest2smtp/main/www/openapi.yaml#/mail/sendmail).
 
 ## Config
@@ -14,12 +14,20 @@ It's also available [here](https://petstore.swagger.io/?url=https://raw.githubus
 | SMTP_ENCRYPTION | `TLS` (default), `STARTTLS`, `UNENCRYPTED` (insecure)                                                               |
 | SMTP_USERNAME   | (optional)                                                                                                          |
 | SMTP_PASSWORD   | (optional)                                                                                                          |
-| API_TOKEN       | Shared secret for API access. When set, `POST /send` requires `Authorization: Bearer <token>`. When unset, open.   |
-| API_DOC_INFO    | Custom text (or html) to be displayed in API documentation header. Defaults to "Send mails via REST API" (optional) |
+| API_TOKEN       | When set, HTTP request header `Authorization: Bearer <token>` must be present. (optional)                           |
+| API_DOC_INFO    | Custom text (or HTML) to be displayed in API documentation header. Defaults to "Send mails via REST API" (optional) |
 
 ## Deployment
 
-Docker Compose / Swarm
+### Docker
+
+```shell
+docker run -p 8080:80 -e SMTP_HOST=smtp.example.org knrdl/rest2smtp
+```
+
+Open the API documentation: http://localhost:8080/
+
+### Docker Compose
 
 ```yaml
 version: '3.9'
@@ -30,15 +38,15 @@ services:
     hostname: rest2smtp
     environment:
       SMTP_HOST: smtp.example.org  # replace this
-      # API_TOKEN: replace-with-long-random-secret
+      # see config table above for optional settings
     ports:
       - "80:80"
 ```
 
-## Development
+## Manual build
 
 ```shell
 # in project root dir
-podman run -it --rm -v "$PWD:$PWD" -w "$PWD" -p8080:80 --env-file env docker.io/library/rust
+docker run -it --rm -v "$PWD:$PWD" -w "$PWD" -p8080:80 --env-file env docker.io/library/rust
 $ cargo run
 ```

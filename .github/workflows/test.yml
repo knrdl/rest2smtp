@@ -8,7 +8,7 @@ on:
 
 jobs:
   tet:
-    name: Test, clippy, and format
+    name: Test, check format, clippy, outdated deps
     runs-on: ubuntu-latest
 
     steps:
