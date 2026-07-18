@@ -45,9 +45,12 @@ services:
 
 ### Binary
 
-Download the standalone binary from the [https://github.com/knrdl/rest2smtp/releases/latest](release assets).
-
 ```shell
+# downloads newest binary from the release assets
+wget -O ./rest2smtp https://github.com/knrdl/rest2smtp/releases/latest/download/rest2smtp
+# make program executable
+chmod +x ./rest2smtp
+# start the program
 SMTP_HOST=smtp.example.org ./rest2smtp
 ```
 
