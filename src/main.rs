@@ -10,13 +10,13 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 
-use rocket::form::Form;
-use rocket::fs::FileServer;
-use rocket::fs::TempFile;
-use rocket::http::Status;
-use rocket::serde::{json::Json, Deserialize};
-use rocket::Request;
-use rocket::State;
+use rocket::{
+form::Form,
+fs::{FileServer, TempFile},
+http::Status,
+serde::{json::Json, Deserialize},
+Request, State,
+};
 
 use lettre::message::{header, Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::{AsyncTransport, Message};
@@ -48,8 +48,7 @@ async fn main() -> Result<(), Box<rocket::Error>> {
     );
     let _rocket = rocket::build()
         .manage(mailer::Mailer::new(config))
-        .manage(api_token)
-        .mount("/", routes![sendmail_form, sendmail_json])
+                .mount("/", routes![sendmail_form, sendmail_json])
         .mount("/", FileServer::from("www"))
         .register(
             "/",
@@ -72,9 +71,27 @@ fn not_found(_req: &Request) -> &'static str {
     "404 not found"
 }
 
+struct Unauthorized;
+
+impl<'r> rocket::response::Responder<'r, 'static> for Unauthorized {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'static> {
+        Ok(rocket::Response::build()
+            .status(rocket::http::Status::Unauthorized)
+            .header(rocket::http::Header::new(
+                "WWW-Authenticate",
+                r#"Bearer realm="api""#,
+            ))
+            .sized_body(
+                "401 unauthorized".len(),
+                std::io::Cursor::new("401 unauthorized"),
+            )
+            .finalize())
+    }
+}
+
 #[catch(401)]
-fn unauthorized(_req: &Request) -> &'static str {
-    "401 unauthorized"
+fn unauthorized(_: &rocket::Request<'_>) -> Unauthorized {
+    Unauthorized
 }
 
 #[catch(413)]
