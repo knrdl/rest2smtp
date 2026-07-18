@@ -4,5 +4,6 @@
         "ghcr.io/devcontainers/features/rust:1": {
             "profile": "default"
         }
-    }
+    },
+    "postCreateCommand": "cargo install cargo-outdated"
 }
