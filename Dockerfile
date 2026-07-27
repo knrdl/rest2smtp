@@ -9,7 +9,7 @@ COPY www/* /swagger/swagger-ui/dist/
 
 
 # platform parameter fixes https://github.com/docker/buildx/issues/395
-FROM --platform=${BUILDPLATFORM:-linux/amd64} docker.io/rust:1.97.0-bookworm AS executable_builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} docker.io/rust:1.97.1-bookworm AS executable_builder
 
 WORKDIR /usr/src/app
 COPY src ./src
